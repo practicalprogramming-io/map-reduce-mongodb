@@ -17,7 +17,6 @@
   },
   "homepage": "https://github.com/practicalprogramming-io/map-reduce-mongodb#readme",
   "dependencies": {
-    "JSONStream": "^1.0.7",
     "async": "^1.5.2",
     "event-stream": "^3.3.2",
     "jsonparse": "^1.2.0",
