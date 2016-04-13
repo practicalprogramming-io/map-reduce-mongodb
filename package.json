@@ -1,0 +1,26 @@
+{
+  "name": "map-reduce-mongodb",
+  "version": "1.0.0",
+  "description": "Harvest and Transform USGS Real-time Hydrographic Data with Node.js and MongoDB.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/practicalprogramming-io/map-reduce-mongodb.git"
+  },
+  "author": "Adrian Sonnenschein",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/practicalprogramming-io/map-reduce-mongodb/issues"
+  },
+  "homepage": "https://github.com/practicalprogramming-io/map-reduce-mongodb#readme",
+  "dependencies": {
+    "JSONStream": "^1.0.7",
+    "async": "^1.5.2",
+    "event-stream": "^3.3.2",
+    "jsonparse": "^1.2.0",
+    "through": "^2.3.8"
+  }
+}
