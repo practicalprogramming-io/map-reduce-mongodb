@@ -2,8 +2,7 @@ var async = require('async')
   , config = require('./config')
   , http = require('http')
   , Parser = require('jsonparse')
-  , JSONStream = require('JSONStream')
-  , stream = require('event-stream')
+  , Stream = require('stream').Stream
   , through = require('through')
 ;
 
@@ -19,9 +18,9 @@ function buildHarvestURL (state) {
 
 }
 
-//https://github.com/dominictarr/JSONStream
 
 function parseStream () {
+  // https://github.com/dominictarr/JSONStream
 
   var parser
     , stream
@@ -73,24 +72,45 @@ function parseStream () {
 }
 
 
+function streamMapper (callback) {
+
+  var stream = new Stream()
+
+  stream.writable = true
+
+  stream.write = function (data) {
+    return callback.call(null, data)
+  }
+
+  stream.end = function (data) {
+    stream.writable = false
+    stream.emit('end')
+    stream.destroy()
+  }
+
+  stream.destroy = function () {
+    stream.emit('close')
+  }
+
+  return stream
+
+}
+
+
 function requestUSGS (url, callback) {
 
   var request;
 
   request = http.get(url, function (response) {
 
-    var map
-      , parse
-    ;
-
-    map = stream.map(function data (data) {
-      console.log('here');
-      console.log(data.values[0].value);
-    });
+    var parse, mapper;
 
     parse = parseStream();
+    mapper = streamMapper(function (data) {
+      console.log(data)
+    })
 
-    response.pipe(parse).pipe(map);
+    response.pipe(parse).pipe(mapper);
 
     response.on('error', function (error) {
       callback(error);
