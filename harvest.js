@@ -4,6 +4,7 @@ var async = require('async')
   , Parser = require('jsonparse')
   , Stream = require('stream').Stream
   , through = require('through')
+  , mongodb = require('./mongodb')
 ;
 
 
@@ -30,7 +31,7 @@ function parseStream () {
 
   parser = new Parser()
 
-  stream = through(function (chunk) {
+  stream = through(function(chunk) {
     if('string' === typeof chunk)
       chunk = new Buffer(chunk)
     parser.write(chunk)
@@ -78,17 +79,17 @@ function streamMapper (callback) {
 
   stream.writable = true
 
-  stream.write = function (data) {
+  stream.write = (data) => {
     return callback.call(null, data)
   }
 
-  stream.end = function (data) {
+  stream.end = (data) => {
     stream.writable = false
     stream.emit('end')
     stream.destroy()
   }
 
-  stream.destroy = function () {
+  stream.destroy = () => {
     stream.emit('close')
   }
 
@@ -105,9 +106,11 @@ function requestUSGS (url, callback) {
 
     var parse, mapper;
 
-    parse = parseStream();
+    parse = parseStream()
     mapper = streamMapper(function (data) {
-      console.log(data)
+      mongodb.createRecords('harvest', data, function (error) {
+        if (error) callback(error)
+      })
     })
 
     response.pipe(parse).pipe(mapper);
@@ -126,7 +129,7 @@ function requestUSGS (url, callback) {
 
 }
 
-function harvest () {
+function harvest (done) {
 
   var states = config.states;
 
@@ -135,10 +138,46 @@ function harvest () {
       url = buildHarvestURL(state);
       console.log('Currently scraping: ', url);
       requestUSGS(url, function (error, data) {
-        if (error) console.log('error', error);
-        //console.log(data);
+        if (error) callback(error);
         return series(states.shift());
       });
+    }
+    else {
+      async.waterfall([
+        function (callback) {
+          mongodb.reduceRecords('harvest', function (err, data) {
+            if (err) callback(err);
+            else callback(null, data);
+          })
+        },
+        function (data, callback) {
+          mongodb.createRecords('geojson', data, function (err) {
+            if (err) callback(err);
+            callback(null);
+          })
+        },
+        function (callback) {
+          mongodb.reduceMerge('geojson', function (err) {
+            if (err) callback(err);
+            else callback(null);
+          })
+        },
+        function (callback) {
+          mongodb.singleGeoJsonDoc('join', function (err, res) {
+            if (err) callback(err);
+            callback(null, res);
+          })
+        },
+        function (data, callback) {
+          mongodb.createRecords('record', data, function (err) {
+            if (err) callback(err);
+            callback(null);
+          })
+        }
+      ], function (error) {
+        if (error) done(error);
+        else done(null);
+      })
     }
   }
 
@@ -147,4 +186,7 @@ function harvest () {
 }
 
 
-harvest();
+harvest(function (error, done) {
+  if (error) console.log(error)
+  process.exit(0)
+});

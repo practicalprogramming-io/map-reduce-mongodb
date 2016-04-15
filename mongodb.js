@@ -12,10 +12,10 @@ var mongoose = require('mongoose')
 
 mongoURL = ['mongodb:/', config.mongodb.host, config.mongodb.dbname].join('/')
 
-records = new mongoose.Schema({})
-harvests = new mongoose.Schema({})
+record = new mongoose.Schema({})
+harvest = new mongoose.Schema({})
 geojson = new mongoose.Schema({})
-joined = new mongoose.Schema({}, {collection: 'joined'})
+join = new mongoose.Schema({})
 
 mongoDB = mongoose.connect(mongoURL)
 
@@ -34,16 +34,16 @@ function connectMongoCollection (collection, schema) {
 function getCollection (collection) {
   switch (collection) {
     case 'record':
-      return connectMongoCollection('Records', records);
+      return connectMongoCollection('Record', record);
       break;
     case 'harvest':
-      return connectMongoCollection('Harvests', harvests);
+      return connectMongoCollection('Harvest', harvest);
       break;
     case 'geojson':
       return connectMongoCollection('GeoJSON', geojson);
       break;
-    case 'joined':
-      return connectMongoCollection('Joined', joined);
+    case 'join':
+      return connectMongoCollection('Join', join);
       break;
   }
 }
@@ -76,7 +76,7 @@ function reduceRecords (collection, callback) {
     , idQuery
     ;
 
-  dbModel = mongo.getCollection(collection);
+  dbModel = getCollection(collection);
 
   dbModel.find({}, function (err, res) {
     if (err) callback(err);
@@ -89,8 +89,8 @@ function reduceRecords (collection, callback) {
   });
 
   o = {};
-  o.map = geoJsonMapReduce.map;
-  o.reduce = geoJsonMapReduce.reduce;
+  o.map = mapreduce.geojsonMap;
+  o.reduce = mapreduce.geojsonReduce;
   o.query = idQuery;
 
   dbModel.mapReduce(o, function (err, res) {
@@ -108,7 +108,7 @@ function reduceMerge (collection, callback) {
     , doc
     , i
 
-  dbModel = mongo.getCollection(collection);
+  dbModel = getCollection(collection);
 
   dbModel.find({}, function (err, res) {
     if (err) callback(err);
@@ -121,14 +121,14 @@ function reduceMerge (collection, callback) {
   });
 
   stream = {};
-  stream.map = mergeMapReduce.streamFlowMap;
-  stream.reduce = mergeMapReduce.reduce;
+  stream.map = mapreduce.streamFlowMap;
+  stream.reduce = mapreduce.mergeReduce;
   stream.query = idQuery;
   stream.out = {reduce: 'joined'};
 
   gage = {};
-  gage.map = mergeMapReduce.gageHeightMap;
-  gage.reduce = mergeMapReduce.reduce;
+  gage.map = mapreduce.gageHeightMap;
+  gage.reduce = mapreduce.mergeReduce;
   gage.query = idQuery;
   gage.out = {reduce: 'joined'};
 
@@ -157,7 +157,7 @@ function singleGeoJsonDoc (collection, callback) {
     , stream
     , geoJson
 
-  dbModel = mongo.getCollection(collection);
+  dbModel = getCollection(collection);
   stream = dbModel.find().stream();
   geoJson = {"data": []};
 
@@ -184,7 +184,7 @@ function singleGeoJsonDoc (collection, callback) {
 }
 
 function getAllDocs (collection, callback) {
-  var dbModel = mongo.getCollection(collection);
+  var dbModel = getCollection(collection);
   dbModel.find().lean().exec(function (err, data) {
     if (err) callback(err);
     else callback(null, data[0].data);
@@ -192,7 +192,7 @@ function getAllDocs (collection, callback) {
 }
 
 function emptyCollection (collection, callback) {
-  var dbModel = mongo.getCollection(collection);
+  var dbModel = getCollection(collection);
   dbModel.remove({}, function (err) {
     if (err) callback(err);
     else callback(null)
