@@ -1,10 +1,8 @@
-'use strict';
+'use strict'
 
 function geojsonMap () {
-  var doc
-    , attrs
 
-  doc = {}
+  const doc = {}
   doc.geometry = {}
   doc.properties = {}
   doc.type = 'Feature'
@@ -20,7 +18,7 @@ function geojsonMap () {
   doc.properties.srs = this.sourceInfo.geoLocation.geogLocation.srs
   doc.properties.siteCode = this.sourceInfo.siteCode[0].value
 
-  attrs = {}
+  const attrs = {}
   if (this.values[0].value[0]) {
     attrs.variableCode = this.variable.variableCode[0].value || 'undefined'
     attrs.variableUnit = this.variable.unit.unitAbbreviation || 'undefined'
@@ -52,9 +50,7 @@ function gageHeightMap () {
 }
 
 function mergeReduce (key, values) {
-  var result
-
-  result = {}
+  const result = {}
   result.geometry = {}
   result.properties = {}
   result.properties.streamFlow = {}
@@ -63,9 +59,6 @@ function mergeReduce (key, values) {
   result.geometry.type = 'Point'
 
   values.forEach(function (value) {
-    var stream
-      , gage
-
     value = value.value
     if (value.geometry.coordinates) {
       result.geometry.coordinates = value.geometry.coordinates
@@ -83,7 +76,7 @@ function mergeReduce (key, values) {
       result.properties.siteCode = value.properties.siteCode
     }
     if (value.properties.variables[0].variableCode === '00065') {
-      stream = value.properties.variables[0]
+      const stream = value.properties.variables[0]
       result.properties.streamFlow = {
         variableCode: stream.variableCode,
         noDataValue: stream.noDataValue,
@@ -92,7 +85,7 @@ function mergeReduce (key, values) {
       }
     }
     if (value.properties.variables[0].variableCode === '00060') {
-      gage = value.properties.variables[0]
+      const gage = value.properties.variables[0]
       result.properties.gageHeight = {
         variableCode: gage.variableCode,
         noDataValue: gage.noDataValue,
@@ -104,6 +97,7 @@ function mergeReduce (key, values) {
 
   return result
 }
+
 
 exports.geojsonMap = geojsonMap
 exports.geojsonReduce = geojsonReduce
