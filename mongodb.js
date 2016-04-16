@@ -1,154 +1,132 @@
-var mongoose = require('mongoose')
-  , config = require('./config')
-  , mapreduce = require('./mapreduce')
-  , async = require('async')
-  , mongoURL
-  , mongoDB
-  , records
-  , harvests
-  , geojson
-  , joined
+'use strict'
+
+const mongoose = require('mongoose')
+const config = require('./config')
+const mapreduce = require('./mapreduce')
+const async = require('async')
 
 
-mongoURL = ['mongodb:/', config.mongodb.host, config.mongodb.dbname].join('/')
+const mongoURL = ['mongodb:/', config.mongodb.host, config.mongodb.dbname].join('/')
+const record = new mongoose.Schema({})
+const harvest = new mongoose.Schema({})
+const geojson = new mongoose.Schema({})
+const join = new mongoose.Schema({})
 
-record = new mongoose.Schema({})
-harvest = new mongoose.Schema({})
-geojson = new mongoose.Schema({})
-join = new mongoose.Schema({})
+const mongoDB = mongoose.connect(mongoURL)
 
-mongoDB = mongoose.connect(mongoURL)
+mongoDB.connection.on('error', (error) => {
+  console.log('Error connecting to MongoDB', err)
+})
 
-mongoDB.connection.on('error', function (err) {
-  console.log('Error connecting to MongoDB', err);
-});
-
-mongoDB.connection.on('open', function () {
-  console.log('Connected to MongoDB');
-});
+mongoDB.connection.on('open', () => {
+  console.log('Connected to MongoDB')
+})
 
 function connectMongoCollection (collection, schema) {
-  return mongoDB.model(collection, schema);
+  return mongoDB.model(collection, schema)
 }
 
 function getCollection (collection) {
   switch (collection) {
     case 'record':
-      return connectMongoCollection('Record', record);
-      break;
+      return connectMongoCollection('Record', record)
+      break
     case 'harvest':
-      return connectMongoCollection('Harvest', harvest);
-      break;
+      return connectMongoCollection('Harvest', harvest)
+      break
     case 'geojson':
-      return connectMongoCollection('GeoJSON', geojson);
-      break;
+      return connectMongoCollection('GeoJSON', geojson)
+      break
     case 'join':
-      return connectMongoCollection('Join', join);
-      break;
+      return connectMongoCollection('Join', join)
+      break
   }
 }
 
 function removeCollection (collection, callback) {
-  var dbModel;
-  dbModel = getCollection(collection);
-  dbModel.remove({}, function (err) {
-    if (err) callback(err);
-    else callback(null, 'Removed collection:', collection);
-  });
+  const dbModel = getCollection(collection)
+  dbModel.remove({}, (error) => {
+    if (error) callback(error)
+    else callback(null, 'Removed collection:', collection)
+  })
 }
 
 function createRecords (collection, data, callback) {
-  var dbModel;
-
-  dbModel = getCollection(collection);
-  dbModel.collection.insert(data, function (err, res) {
-    if (err) callback(err);
-    else callback(null, res);
-  });
+  const dbModel = getCollection(collection)
+  dbModel.collection.insert(data, (error, response) => {
+    if (error) callback(error)
+    else callback(null, response)
+  })
 }
 
 function reduceRecords (collection, callback) {
-  var dbModel
-    , o
-    , docIds
-    , doc
-    , i
-    , idQuery
-    ;
+  var idQuery
+  const dbModel = getCollection(collection)
+  const o = {}
 
-  dbModel = getCollection(collection);
-
-  dbModel.find({}, function (err, res) {
-    if (err) callback(err);
-    docIds = [];
-    for (i = 0; i < res.length; i++) {
-      doc = res[i];
-      docIds.push(doc._id);
+  dbModel.find({}, (error, response) => {
+    if (error) callback(error)
+    const docIds = []
+    for (let i = 0; i < response.length; i++) {
+      let doc = response[i]
+      docIds.push(doc._id)
     }
-    idQuery = {_id: {$in: docIds}};
-  });
+    idQuery = {_id: {$in: docIds}}
+  })
 
-  o = {};
-  o.map = mapreduce.geojsonMap;
-  o.reduce = mapreduce.geojsonReduce;
-  o.query = idQuery;
+  o.map = mapreduce.geojsonMap
+  o.reduce = mapreduce.geojsonReduce
+  o.query = idQuery
 
-  dbModel.mapReduce(o, function (err, res) {
-    if (err) callback(err);
-    else callback(null, res);
+  dbModel.mapReduce(o, (error, response) => {
+    if (error) callback(error)
+    else callback(null, response)
   })
 }
 
 function reduceMerge (collection, callback) {
-  var dbModel
-    , stream
-    , gage
-    , idQuery
-    , docIds
-    , doc
-    , i
+  var idQuery
+  const dbModel = getCollection(collection)
+  const stream = {}
+  const gage = {}
 
-  dbModel = getCollection(collection);
-
-  dbModel.find({}, function (err, res) {
-    if (err) callback(err);
-    docIds = [];
-    for (i = 0; i < res.length; i++) {
-      doc = res[i];
-      docIds.push(doc._id);
+  dbModel.find({}, (error, response) => {
+    if (error) callback(error)
+    const docIds = []
+    for (let i = 0; i < response.length; i++) {
+      let doc = response[i]
+      docIds.push(doc._id)
     }
-    idQuery = {_id: {$in: docIds}};
-  });
+    idQuery = {_id: {$in: docIds}}
+  })
 
-  stream = {};
-  stream.map = mapreduce.streamFlowMap;
-  stream.reduce = mapreduce.mergeReduce;
-  stream.query = idQuery;
-  stream.out = {reduce: 'joined'};
+  stream.map = mapreduce.streamFlowMap
+  stream.reduce = mapreduce.mergeReduce
+  stream.query = idQuery
+  stream.out = {reduce: 'joined'}
 
-  gage = {};
-  gage.map = mapreduce.gageHeightMap;
-  gage.reduce = mapreduce.mergeReduce;
-  gage.query = idQuery;
-  gage.out = {reduce: 'joined'};
+  gage.map = mapreduce.gageHeightMap
+  gage.reduce = mapreduce.mergeReduce
+  gage.query = idQuery
+  gage.out = {reduce: 'joined'}
 
   async.parallel({
     stream: function (callback) {
       dbModel.mapReduce(stream, function (err, res) {
-        if (err) callback(null, new Error('failed'));
-        else callback(null, 'passed');
+        if (err) callback(null, new Error('failed'))
+        else callback(null, 'passed')
       })
     },
     gage: function (callback) {
       dbModel.mapReduce(gage, function (err, res) {
-        if (err) callback(null, new Error('failed'));
-        else callback(null, 'passed');
+        if (err) callback(null, new Error('failed'))
+        else callback(null, 'passed')
       })
     }
   },
   function (err, res) {
-    if (err) throw err;
-    else callback(null, res);
+    if (err) throw err
+    else callback(null, res)
   })
 }
 
@@ -157,18 +135,18 @@ function singleGeoJsonDoc (collection, callback) {
     , stream
     , geoJson
 
-  dbModel = getCollection(collection);
-  stream = dbModel.find().stream();
-  geoJson = {"data": []};
+  dbModel = getCollection(collection)
+  stream = dbModel.find().stream()
+  geoJson = {"data": []}
 
   stream.on('data', function (data) {
     var geometry
       , properties
       , doc
 
-    doc = data._doc;
-    geometry = doc.value.geometry;
-    properties = doc.value.properties;
+    doc = data._doc
+    geometry = doc.value.geometry
+    properties = doc.value.properties
     if (geometry && properties) {
       geoJson.data.push({
         "type": "Feature",
@@ -177,32 +155,32 @@ function singleGeoJsonDoc (collection, callback) {
       })
     }
   }).on('error', function (err) {
-    callback(err);
+    callback(err)
   }).on('close', function () {
-    callback(null, geoJson);
+    callback(null, geoJson)
   })
 }
 
 function getAllDocs (collection, callback) {
-  var dbModel = getCollection(collection);
+  var dbModel = getCollection(collection)
   dbModel.find().lean().exec(function (err, data) {
-    if (err) callback(err);
-    else callback(null, data[0].data);
+    if (err) callback(err)
+    else callback(null, data[0].data)
   })
 }
 
 function emptyCollection (collection, callback) {
-  var dbModel = getCollection(collection);
+  var dbModel = getCollection(collection)
   dbModel.remove({}, function (err) {
-    if (err) callback(err);
+    if (err) callback(err)
     else callback(null)
   })
 }
 
-exports.removeCollection = removeCollection;
-exports.createRecords = createRecords;
-exports.reduceRecords = reduceRecords;
-exports.reduceMerge = reduceMerge;
-exports.singleGeoJsonDoc = singleGeoJsonDoc;
-exports.getAllDocs = getAllDocs;
-exports.emptyCollection = emptyCollection;
+exports.removeCollection = removeCollection
+exports.createRecords = createRecords
+exports.reduceRecords = reduceRecords
+exports.reduceMerge = reduceMerge
+exports.singleGeoJsonDoc = singleGeoJsonDoc
+exports.getAllDocs = getAllDocs
+exports.emptyCollection = emptyCollection

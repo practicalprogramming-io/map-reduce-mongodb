@@ -18,6 +18,7 @@
   "homepage": "https://github.com/practicalprogramming-io/map-reduce-mongodb#readme",
   "dependencies": {
     "async": "^1.5.2",
+    "babel": "^6.5.2",
     "jsonparse": "^1.2.0",
     "mongoose": "^4.4.12",
     "through": "^2.3.8"
